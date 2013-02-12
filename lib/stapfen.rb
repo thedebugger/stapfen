@@ -1,5 +1,9 @@
-require "stapfen/version"
+require 'stapfen/version'
+require 'stapfen/worker'
 
 module Stapfen
-  # Your code goes here...
+  class ConfigurationError < StandardError
+  end
+  class ConsumeError < StandardError
+  end
 end
