@@ -7,4 +7,5 @@ gemspec
 group :development do
   gem 'rake'
   gem 'rspec', '~> 2.11'
+  gem 'guard-rspec'
 end
