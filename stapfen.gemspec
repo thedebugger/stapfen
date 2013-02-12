@@ -7,9 +7,9 @@ Gem::Specification.new do |gem|
   gem.name          = "stapfen"
   gem.version       = Stapfen::VERSION
   gem.authors       = ["R. Tyler Croy"]
-  gem.email         = ["tyler@monkeypox.org"]
-  gem.description   = %q{TODO: Write a gem description}
-  gem.summary       = %q{TODO: Write a gem summary}
+  gem.email         = ["rtyler.croy@lookout.com"]
+  gem.description   = "A simple gem for writing good basic STOMP workers"
+  gem.summary       = "A simple gem for writing good basic STOMP workers"
   gem.homepage      = ""
 
   gem.files         = `git ls-files`.split($/)
