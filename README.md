@@ -1,6 +1,45 @@
 # Stapfen
 
-TODO: Write a gem description
+Stapfen is a simple gem to make writing stand-alone STOMP workers easier.
+
+
+## Usage
+
+(Examples can be found in the `examples/` directory)
+
+
+Consider the following `myworker.rb` file:
+
+    class MyWorker < Stapfen::Worker
+      configure do
+        {:hosts => [
+          {
+            :host => 'localhost',
+            :port => 61613,
+            :login => 'guest',
+            :passcode => 'guest',
+            :ssl => false
+          }
+        ]}
+      end
+
+      consume 'thequeue' do |message|
+        data = expensive_computation(message.body)
+        persist(data)
+      end
+    end
+
+    MyWorker.run!
+
+
+The value returned from the `configure` block is expected to be a valid
+`Stomp::Client` [connection
+hash](https://github.com/stompgem/stomp#hash-login-example-usage-this-is-the-recommended-login-technique).
+
+It is also important to note that the `consume` block will be invoked inside an
+**instance** of `MyWorker` and will execute inside its own `Thread`, so take
+care when accessing other shared resources.
+
 
 ## Installation
 
@@ -16,14 +55,3 @@ Or install it yourself as:
 
     $ gem install stapfen
 
-## Usage
-
-TODO: Write usage instructions here
-
-## Contributing
-
-1. Fork it
-2. Create your feature branch (`git checkout -b my-new-feature`)
-3. Commit your changes (`git commit -am 'Add some feature'`)
-4. Push to the branch (`git push origin my-new-feature`)
-5. Create new Pull Request
