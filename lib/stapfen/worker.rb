@@ -25,7 +25,7 @@ module Stapfen
       @consumers << [queue_name, headers, block]
     end
 
-    attr_accessor :client, :pool
+    attr_accessor :client
 
     def initialize
       @pool = []
@@ -33,11 +33,11 @@ module Stapfen
     end
 
     def run
-      client = Stomp::Client.new(self.class.configuration)
+      @client = Stomp::Client.new(self.class.configuration)
 
       self.class.consumers.each do |name, headers, block|
         client.subscribe(name, headers) do |message|
-          pool << Thread.new do
+          @pool << Thread.new do
             block.call(message)
           end
         end
@@ -49,7 +49,7 @@ module Stapfen
         # close the connection, and an infinite Client#join call
         while client.open? do
           client.join(1)
-          pool = pool.select { |t| t.alive? }
+          @pool = @pool.select { |t| t.alive? }
         end
       rescue Interrupt
         exit_cleanly
@@ -67,9 +67,9 @@ module Stapfen
     end
 
     def exit_cleanly
-      unless pool.empty?
-        puts "Giving #{pool.size} threads 10s each to finish up"
-        pool.each do |t|
+      unless @pool.empty?
+        puts "Giving #{@pool.size} threads 10s each to finish up"
+        @pool.each do |t|
           t.join(10)
         end
       end

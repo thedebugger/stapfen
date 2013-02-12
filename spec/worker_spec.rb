@@ -48,7 +48,7 @@ describe Stapfen::Worker do
 
           worker.consumers.should_not be_empty
           entry = worker.consumers.first
-          entry[:name].should eq(name)
+          entry.first.should eq(name)
         end
       end
     end
