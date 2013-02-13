@@ -21,7 +21,9 @@ class Worker < Stapfen::Worker
   end
 
   consume 'jms.topic.foo', {:ack => 'client'} do |message|
-    client.acknowledge(message)
+    main_thread do
+      client.acknowledge(message)
+    end
   end
 end
 

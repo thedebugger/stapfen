@@ -29,7 +29,12 @@ module Stapfen
 
     def initialize
       @pool = []
+      @workqueue = Queue.new
       handle_signals!
+    end
+
+    def main_thread(&block)
+      @workqueue << block
     end
 
     def run
@@ -49,6 +54,16 @@ module Stapfen
         # close the connection, and an infinite Client#join call
         while client.open? do
           client.join(1)
+
+          until @workqueue.empty?
+            block = @workqueue.pop
+            begin
+              block.call
+            rescue => e
+              puts "Exception! #{e}"
+            end
+          end
+
           @pool = @pool.select { |t| t.alive? }
         end
       rescue Interrupt
