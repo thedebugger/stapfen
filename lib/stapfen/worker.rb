@@ -45,7 +45,7 @@ module Stapfen
         # We're taking each block and turning it into a method so that we can
         # use the instance scope instead of the blocks originally bound scope
         # which would be at a class level
-        method_name = name.gsub('.', '_').to_sym
+        method_name = name.gsub(/[.|\-]/, '_').to_sym
         self.class.send(:define_method, method_name, &block)
 
         client.subscribe(name, headers) do |message|
