@@ -41,9 +41,16 @@ module Stapfen
       @client = Stomp::Client.new(self.class.configuration)
 
       self.class.consumers.each do |name, headers, block|
+
+        # We're taking each block and turning it into a method so that we can
+        # use the instance scope instead of the blocks originally bound scope
+        # which would be at a class level
+        method_name = name.gsub('.', '_').to_sym
+        self.class.send(:define_method, method_name, &block)
+
         client.subscribe(name, headers) do |message|
           @pool << Thread.new do
-            block.call(message)
+            self.send(method_name, message)
           end
         end
       end
