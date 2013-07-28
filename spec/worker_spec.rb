@@ -2,15 +2,15 @@ require 'spec_helper'
 
 
 describe Stapfen::Worker do
-  let(:worker) { subject }
+  subject(:worker) { described_class.new }
 
   context 'class methods' do
-    subject { described_class }
-    let(:worker) { described_class }
+    subject(:worker) { described_class }
 
     it { should respond_to :run! }
     it { should respond_to :configure }
     it { should respond_to :consume }
+    it { should respond_to :logger }
 
     describe '#configure' do
       it 'should error when not passed a block' do
@@ -53,4 +53,5 @@ describe Stapfen::Worker do
       end
     end
   end
+
 end

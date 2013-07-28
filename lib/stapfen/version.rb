@@ -1,3 +1,3 @@
 module Stapfen
-  VERSION = "1.1.#{ENV['BUILD_NUMBER'] || 'dev'}"
+  VERSION = '1.2.0'
 end

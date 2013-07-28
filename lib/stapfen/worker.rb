@@ -1,15 +1,22 @@
 require 'stomp'
+require 'stapfen/logger'
 
 module Stapfen
   class Worker
+    include Stapfen::Logger
+
     class << self
-      attr_accessor :configuration, :consumers
+      attr_accessor :configuration, :consumers, :logger
     end
 
+    # Instantiate a new +Worker+ instance and run it
     def self.run!
       self.new.run
     end
 
+    # Expects a block to be passed which will yield the appropriate
+    # configuration for the Stomp gem. Whatever the block yields will be passed
+    # directly into the {{Stomp::Client#new}} method
     def self.configure
       unless block_given?
         raise Stapfen::ConfigurationError
@@ -17,6 +24,14 @@ module Stapfen
       @configuration = yield
     end
 
+    # Optional method, should be passed a block which will yield a {{Logger}}
+    # instance for the Stapfen worker to use
+    def self.log
+      @logger = yield
+    end
+
+
+    # Main message consumption block
     def self.consume(queue_name, headers={}, &block)
       unless block_given?
         raise Stapfen::ConsumeError, "Cannot consume #{queue_name} without a block!"
@@ -28,13 +43,7 @@ module Stapfen
     attr_accessor :client
 
     def initialize
-      @pool = []
-      @workqueue = Queue.new
       handle_signals!
-    end
-
-    def main_thread(&block)
-      @workqueue << block
     end
 
     def run
@@ -49,9 +58,7 @@ module Stapfen
         self.class.send(:define_method, method_name, &block)
 
         client.subscribe(name, headers) do |message|
-          @pool << Thread.new do
-            self.send(method_name, message)
-          end
+          self.send(method_name, message)
         end
       end
 
@@ -61,17 +68,6 @@ module Stapfen
         # close the connection, and an infinite Client#join call
         while client.open? do
           client.join(1)
-
-          until @workqueue.empty?
-            block = @workqueue.pop
-            begin
-              block.call
-            rescue => e
-              puts "Exception! #{e}"
-            end
-          end
-
-          @pool = @pool.select { |t| t.alive? }
         end
       rescue Interrupt
         exit_cleanly
@@ -89,12 +85,6 @@ module Stapfen
     end
 
     def exit_cleanly
-      unless @pool.empty?
-        puts "Giving #{@pool.size} threads 10s each to finish up"
-        @pool.each do |t|
-          t.join(10)
-        end
-      end
       unless client.closed?
         client.close
       end
