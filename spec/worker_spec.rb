@@ -10,7 +10,8 @@ describe Stapfen::Worker do
     it { should respond_to :run! }
     it { should respond_to :configure }
     it { should respond_to :consume }
-    it { should respond_to :logger }
+    it { should respond_to :log }
+    it { should respond_to :shutdown }
 
     describe '#configure' do
       it 'should error when not passed a block' do
@@ -54,4 +55,19 @@ describe Stapfen::Worker do
     end
   end
 
+  context 'instance methods' do
+    describe '#exit_cleanly' do
+      let(:client) { double('RSpec Stomp Client') }
+
+      before :each do
+        worker.stub(:client).and_return(client)
+      end
+
+      it 'should close the client' do
+        client.stub(:closed?).and_return(false)
+        client.should_receive(:close)
+        worker.exit_cleanly
+      end
+    end
+  end
 end

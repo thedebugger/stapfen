@@ -6,12 +6,20 @@ module Stapfen
     include Stapfen::Logger
 
     class << self
-      attr_accessor :configuration, :consumers, :logger
+      attr_accessor :configuration, :consumers, :logger, :destructor
+      attr_accessor :workers
     end
 
     # Instantiate a new +Worker+ instance and run it
     def self.run!
-      self.new.run
+      worker = self.new
+
+      @workers ||= []
+      @workers << worker
+
+      handle_signals
+
+      worker.run
     end
 
     # Expects a block to be passed which will yield the appropriate
@@ -30,7 +38,6 @@ module Stapfen
       @logger = yield
     end
 
-
     # Main message consumption block
     def self.consume(queue_name, headers={}, &block)
       unless block_given?
@@ -40,14 +47,42 @@ module Stapfen
       @consumers << [queue_name, headers, block]
     end
 
-    attr_accessor :client
-
-    def initialize
-      handle_signals!
+    # Optional method, specifes a block to execute when the worker is shutting
+    # down.
+    def self.shutdown(&block)
+      @destructor = block
     end
+
+    # Utility method to set up the proper worker signal handlers
+    def self.handle_signals
+      return if @signals_handled
+
+      Signal.trap(:INT) do
+        workers.each do |w|
+          w.exit_cleanly
+        end
+        exit!
+      end
+      Signal.trap(:TERM) do
+        workers.each do |w|
+          w.exit_cleanly
+        end
+      end
+
+      @signals_handled = true
+    end
+
+
+
+    ############################################################################
+    # Instance Methods
+    ############################################################################
+
+    attr_accessor :client
 
     def run
       @client = Stomp::Client.new(self.class.configuration)
+      debug("Running with #{@client} inside of Thread:#{Thread.current.object_id}")
 
       self.class.consumers.each do |name, headers, block|
 
@@ -74,17 +109,11 @@ module Stapfen
       end
     end
 
-    def handle_signals!
-      Signal.trap(:INT) do
-        exit_cleanly
-        exit!
-      end
-      Signal.trap(:TERM) do
-        exit_cleanly
-      end
-    end
-
+    # Invokes the shutdown block if it has been created, and closes the
+    # {{Stomp::Client}} connection unless it has already been shut down
     def exit_cleanly
+      self.class.destructor.call if self.class.destructor
+
       unless client.closed?
         client.close
       end
