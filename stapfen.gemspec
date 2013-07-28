@@ -18,5 +18,5 @@ Gem::Specification.new do |gem|
   gem.require_paths = ["lib"]
 
 
-  gem.add_dependency('onstomp', '>= 1.0.7')
+  gem.add_dependency('stomp', '>= 1.2.8')
 end

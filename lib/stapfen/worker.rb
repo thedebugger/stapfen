@@ -1,5 +1,4 @@
-require 'thread'
-require 'onstomp'
+require 'stomp'
 
 module Stapfen
   class Worker
@@ -29,15 +28,20 @@ module Stapfen
     attr_accessor :client
 
     def initialize
+      @pool = []
+      @workqueue = Queue.new
       handle_signals!
     end
 
+    def main_thread(&block)
+      @workqueue << block
+    end
 
     def run
-      @client = OnStomp::Client.new(generate_uri)
-      @client.connect
+      @client = Stomp::Client.new(self.class.configuration)
 
       self.class.consumers.each do |name, headers, block|
+
         # We're taking each block and turning it into a method so that we can
         # use the instance scope instead of the blocks originally bound scope
         # which would be at a class level
@@ -45,8 +49,9 @@ module Stapfen
         self.class.send(:define_method, method_name, &block)
 
         client.subscribe(name, headers) do |message|
-          puts "invoking #{method_name} for #{message.inspect}"
-          self.send(method_name, message)
+          @pool << Thread.new do
+            self.send(method_name, message)
+          end
         end
       end
 
@@ -54,8 +59,19 @@ module Stapfen
         # Performing this join/open loop to make sure that we don't
         # experience potential deadlocks between signal handlers who might
         # close the connection, and an infinite Client#join call
-        while client.connected? do
-          sleep(0.2)
+        while client.open? do
+          client.join(1)
+
+          until @workqueue.empty?
+            block = @workqueue.pop
+            begin
+              block.call
+            rescue => e
+              puts "Exception! #{e}"
+            end
+          end
+
+          @pool = @pool.select { |t| t.alive? }
         end
       rescue Interrupt
         exit_cleanly
@@ -73,25 +89,15 @@ module Stapfen
     end
 
     def exit_cleanly
-      if client.connected?
-        client.disconnect
+      unless @pool.empty?
+        puts "Giving #{@pool.size} threads 10s each to finish up"
+        @pool.each do |t|
+          t.join(10)
+        end
       end
-    end
-
-    # Convert Stapfen configuration into an OnStomp URL
-    #
-    # @return [String]
-    def generate_uri
-      config = self.class.configuration
-      raise Stapfen::ConfigurationError if config.nil? || config.empty?
-
-      user_info = nil
-
-      if config[:login] && config[:passcode]
-        user_info = "#{config[:login]}:#{config[:passcode]}@"
+      unless client.closed?
+        client.close
       end
-
-      "stomp://#{user_info}#{config[:host]}:#{config[:port]}"
     end
   end
 end

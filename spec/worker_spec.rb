@@ -2,10 +2,11 @@ require 'spec_helper'
 
 
 describe Stapfen::Worker do
-  subject(:worker) { described_class.new }
+  let(:worker) { subject }
 
   context 'class methods' do
-    subject(:worker) { described_class }
+    subject { described_class }
+    let(:worker) { described_class }
 
     it { should respond_to :run! }
     it { should respond_to :configure }
@@ -51,40 +52,5 @@ describe Stapfen::Worker do
         end
       end
     end
-  end
-
-  context 'instance methods' do
-    describe '#generate_uri' do
-      subject(:uri) { worker.generate_uri }
-      let(:conf) { {} }
-
-      before :each do
-        worker.class.stub(:configuration).and_return(conf)
-      end
-
-      context 'with a blank configuration' do
-        it 'should raise an error' do
-          expect { worker.generate_uri }.to raise_error(Stapfen::ConfigurationError)
-        end
-      end
-
-      context 'with an unauthenticated non-ssl host' do
-        let(:conf) { {:host => 'localhost', :port => 61613} }
-
-        it { should eql('stomp://localhost:61613') }
-      end
-
-      context 'with an authentication ssl host' do
-        let(:conf) do
-          {:host => 'localhost',
-           :port => 61613,
-           :login => 'admin',
-           :passcode => 'admin'}
-        end
-
-        it { should eql('stomp://admin:admin@localhost:61613') }
-      end
-    end
-
   end
 end
