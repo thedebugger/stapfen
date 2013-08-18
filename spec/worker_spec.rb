@@ -84,28 +84,12 @@ describe Stapfen::Worker do
           end
         end
   
-        context 'with a queue name and empty headers' do
-          let(:raw_headers) { {} }
-          context 'on a failed message' do
-            it 'should not unreceive' do
-              client.should_receive(:unreceive).never
-    
-              worker.consume(name, raw_headers) {|msg| false }
-              worker.new.run
-            end
+        context 'with a queue name and headers for a dead_letter_queue and max_redeliveries' do
+          let(:unrec_headers) do
+            { :dead_letter_queue => '/queue/foo',
+            :max_redeliveries => 3 }
           end
-          context 'on a successful message' do
-            it 'should not unreceive' do
-              client.should_receive(:unreceive).never
-    
-              worker.consume(name, raw_headers) {|msg| true }
-              worker.new.run
-            end
-          end
-        end
-  
-        context 'with a queue name and an empty :unreceive_headers hash' do
-          let(:raw_headers) { {:unreceive_headers => {}}}
+          let(:raw_headers) { unrec_headers.merge(:other_header => 'foo!') }
           context 'on a failed message' do
             it 'should unreceive' do
               client.should_receive(:unreceive).once
@@ -114,64 +98,10 @@ describe Stapfen::Worker do
               worker.new.run
             end
             it 'should pass :unreceive_headers through to the unreceive call' do
-              client.should_receive(:unreceive).with('msg', {}).once
+              client.should_receive(:unreceive).with('msg', unrec_headers).once
     
               worker.consume(name, raw_headers) {|msg| false }
               worker.new.run
-            end
-          end
-          context 'on a successful message' do
-            it 'should not unreceive' do
-              client.should_receive(:unreceive).never
-    
-              worker.consume(name, raw_headers) {|msg| true }
-              worker.new.run
-            end
-          end
-        end
-  
-        context 'with a queue name and an :unreceive_headers hash with a queue' do
-          let(:raw_headers) { {:unreceive_headers => {:dead_letter_queue => '/queue/foo'}}}
-          context 'on a failed message' do
-            it 'should unreceive' do
-              client.should_receive(:unreceive).once
-    
-              worker.consume(name, raw_headers) {|msg| false }
-              worker.new.run
-            end
-            it 'should pass :unreceive_headers through to the unreceive call' do
-              client.should_receive(:unreceive).with('msg', {:dead_letter_queue => '/queue/foo'}).once
-    
-              worker.consume(name, raw_headers) {|msg| false }
-              worker.new.run
-            end
-          end
-          context 'on a successfully handled message' do
-            it 'should not unreceive' do
-              client.should_receive(:unreceive).never
-    
-              worker.consume(name, raw_headers) {|msg| true }
-              worker.new.run
-            end
-          end
-        end
-  
-        context 'with a queue name and an :unreceive_headers hash with :dead_letter_queue=>true' do
-          let(:raw_headers) { {:unreceive_headers => {:dead_letter_queue => true}}}
-          context 'on a failed message' do
-            it 'should unreceive' do
-              client.should_receive(:unreceive).once
-    
-              worker.consume(name, raw_headers) {|msg| false }
-              worker.new.run
-            end
-            it 'should pass "#{name}/dead_letter_queue" through to the unreceive call' do
-              client.should_receive(:unreceive).
-                with('msg', {:dead_letter_queue => "#{name}/dead_letter_queue"}).once
-    
-              worker.consume(name, raw_headers) {|msg| false }
-              worker.new.run
-  
             end
           end
           context 'on a successfully handled message' do

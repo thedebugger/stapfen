@@ -85,12 +85,9 @@ module Stapfen
       debug("Running with #{@client} inside of Thread:#{Thread.current.object_id}")
 
       self.class.consumers.each do |name, headers, block|
-        unreceive_headers = headers.delete(:unreceive_headers) unless headers.nil?
-
-        # The boolean value true, not a string
-        if unreceive_headers && unreceive_headers[:dead_letter_queue] == true
-          #unreceive_headers[:dead_letter_queue] = "#{name}/dead_letter_queue"
-          unreceive_headers[:dead_letter_queue] = "#{name}/dead_letter_queue"
+        unreceive_headers = {}
+        [:max_redeliveries, :dead_letter_queue].each do |sym|
+          unreceive_headers[sym] = headers.delete(sym) if headers.has_key? sym
         end
 
         # We're taking each block and turning it into a method so that we can
@@ -102,7 +99,7 @@ module Stapfen
         client.subscribe(name, headers) do |message|
           success = self.send(method_name, message)
 
-          if !success && !unreceive_headers.nil?
+          if !success && !unreceive_headers.empty?
             client.unreceive(message, unreceive_headers)
           end
         end
