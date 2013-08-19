@@ -85,6 +85,10 @@ module Stapfen
       debug("Running with #{@client} inside of Thread:#{Thread.current.object_id}")
 
       self.class.consumers.each do |name, headers, block|
+        unreceive_headers = {}
+        [:max_redeliveries, :dead_letter_queue].each do |sym|
+          unreceive_headers[sym] = headers.delete(sym) if headers.has_key? sym
+        end
 
         # We're taking each block and turning it into a method so that we can
         # use the instance scope instead of the blocks originally bound scope
@@ -93,7 +97,11 @@ module Stapfen
         self.class.send(:define_method, method_name, &block)
 
         client.subscribe(name, headers) do |message|
-          self.send(method_name, message)
+          success = self.send(method_name, message)
+
+          if !success && !unreceive_headers.empty?
+            client.unreceive(message, unreceive_headers)
+          end
         end
       end
 

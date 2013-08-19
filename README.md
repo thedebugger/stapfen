@@ -23,7 +23,8 @@ Consider the following `myworker.rb` file:
         ]}
       end
 
-      consume 'thequeue' do |message|
+      consume 'thequeue', :dead_letter_queue => '/queue/dlq',
+                          :max_redeliveries => 0 do |message|
         data = expensive_computation(message.body)
         persist(data)
       end
@@ -40,6 +41,12 @@ It is also important to note that the `consume` block will be invoked inside an
 **instance** of `MyWorker` and will execute inside its own `Thread`, so take
 care when accessing other shared resources.
 
+The consume block accepts the usual
+[Stomp::Client](https://github.com/stompgem/stomp) subscription headers, as well
+as :dead_letter_queue and :max\_redeliveries.  If either of the latter two is
+present, the consumer will unreceive any messages for which the block returns
+false; after :max\_redeliveries, it will send the message to :dead_letter_queue.
+`consume` blocks without these headers will fail silently rather than unreceive.
 
 ## Installation
 
