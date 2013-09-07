@@ -54,7 +54,7 @@ describe Stapfen::Worker do
       end
 
       context 'unreceive behavior' do
-        let(:client) { mock('Stomp::Client', :open? => false) }
+        let(:client) { double('Stomp::Client', :running => false) }
         let(:name) { '/queue/some_queue' }
         before :each do
           Stomp::Client.stub(:new).and_return(client)
@@ -129,6 +129,18 @@ describe Stapfen::Worker do
         client.stub(:closed?).and_return(false)
         client.should_receive(:close)
         worker.exit_cleanly
+      end
+
+      context 'with out having connected a client yet' do
+        before :each do
+          worker.stub(:client).and_return(nil)
+        end
+
+        it 'should not raise any errors' do
+          expect {
+            worker.exit_cleanly
+          }.not_to raise_error
+        end
       end
     end
   end

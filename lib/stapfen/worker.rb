@@ -106,12 +106,16 @@ module Stapfen
       end
 
       begin
-        # Performing this join/open loop to make sure that we don't
+        # Performing this join/runningloop to make sure that we don't
         # experience potential deadlocks between signal handlers who might
         # close the connection, and an infinite Client#join call
-        while client.open? do
+        #
+        # Instead of using client#open? we use #running which will still be
+        # true even if the client is currently in an exponential reconnect loop
+        while client.running do
           client.join(1)
         end
+        warn("Exiting the runloop for #{self}")
       rescue Interrupt
         exit_cleanly
       end
@@ -122,7 +126,8 @@ module Stapfen
     def exit_cleanly
       self.class.destructor.call if self.class.destructor
 
-      unless client.closed?
+      # Only close the client if we have one sitting around
+      if client && !client.closed?
         client.close
       end
     end
