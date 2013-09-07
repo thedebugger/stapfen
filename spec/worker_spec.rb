@@ -27,7 +27,7 @@ describe Stapfen::Worker do
           config
         end
 
-        worker.configuration.should == config
+        worker.configuration.call.should == config
       end
     end
 
@@ -64,12 +64,12 @@ describe Stapfen::Worker do
             block.call('msg')
           end
         end
-  
+
         context 'with just a queue name' do
           context 'on a failed message' do
             it 'should not unreceive' do
               client.should_receive(:unreceive).never
-    
+
               worker.consume(name) {|msg| false }
               worker.new.run
             end
@@ -77,13 +77,13 @@ describe Stapfen::Worker do
           context 'on a successful message' do
             it 'should not unreceive' do
               client.should_receive(:unreceive).never
-    
+
               worker.consume(name) {|msg| true }
               worker.new.run
             end
           end
         end
-  
+
         context 'with a queue name and headers for a dead_letter_queue and max_redeliveries' do
           let(:unrec_headers) do
             { :dead_letter_queue => '/queue/foo',
@@ -93,13 +93,13 @@ describe Stapfen::Worker do
           context 'on a failed message' do
             it 'should unreceive' do
               client.should_receive(:unreceive).once
-    
+
               worker.consume(name, raw_headers) {|msg| false }
               worker.new.run
             end
             it 'should pass :unreceive_headers through to the unreceive call' do
               client.should_receive(:unreceive).with('msg', unrec_headers).once
-    
+
               worker.consume(name, raw_headers) {|msg| false }
               worker.new.run
             end
@@ -107,7 +107,7 @@ describe Stapfen::Worker do
           context 'on a successfully handled message' do
             it 'should not unreceive' do
               client.should_receive(:unreceive).never
-    
+
               worker.consume(name, raw_headers) {|msg| true }
               worker.new.run
             end

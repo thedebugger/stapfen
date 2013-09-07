@@ -25,11 +25,11 @@ module Stapfen
     # Expects a block to be passed which will yield the appropriate
     # configuration for the Stomp gem. Whatever the block yields will be passed
     # directly into the {{Stomp::Client#new}} method
-    def self.configure
+    def self.configure(&block)
       unless block_given?
         raise Stapfen::ConfigurationError
       end
-      @configuration = yield
+      @configuration = block
     end
 
     # Optional method, should be passed a block which will yield a {{Logger}}
@@ -81,7 +81,7 @@ module Stapfen
     attr_accessor :client
 
     def run
-      @client = Stomp::Client.new(self.class.configuration)
+      @client = Stomp::Client.new(self.class.configuration.call)
       debug("Running with #{@client} inside of Thread:#{Thread.current.object_id}")
 
       self.class.consumers.each do |name, headers, block|
