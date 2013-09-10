@@ -5,6 +5,9 @@ module Stapfen
   class Worker
     include Stapfen::Logger
 
+    @@signals_handled = false
+    @@workers = []
+
     class << self
       attr_accessor :configuration, :consumers, :logger, :destructor
       attr_accessor :workers
@@ -14,8 +17,7 @@ module Stapfen
     def self.run!
       worker = self.new
 
-      @workers ||= []
-      @workers << worker
+      @@workers << worker
 
       handle_signals
 
@@ -53,23 +55,29 @@ module Stapfen
       @destructor = block
     end
 
+    # Return all the currently running Stapfen::Worker instances in this
+    # process
+    def self.workers
+      @@workers
+    end
+
     # Utility method to set up the proper worker signal handlers
     def self.handle_signals
-      return if @signals_handled
+      return if @@signals_handled
 
       Signal.trap(:INT) do
-        workers.each do |w|
+        @@workers.each do |w|
           w.exit_cleanly
         end
         exit!
       end
       Signal.trap(:TERM) do
-        workers.each do |w|
+        @@workers.each do |w|
           w.exit_cleanly
         end
       end
 
-      @signals_handled = true
+      @@signals_handled = true
     end
 
 
@@ -82,7 +90,7 @@ module Stapfen
 
     def run
       @client = Stomp::Client.new(self.class.configuration.call)
-      debug("Running with #{@client} inside of Thread:#{Thread.current.object_id}")
+      debug("Running with #{@client} inside of Thread:#{Thread.current.inspect}")
 
       self.class.consumers.each do |name, headers, block|
         unreceive_headers = {}
@@ -124,6 +132,7 @@ module Stapfen
     # Invokes the shutdown block if it has been created, and closes the
     # {{Stomp::Client}} connection unless it has already been shut down
     def exit_cleanly
+      info("#{self} exiting cleanly")
       self.class.destructor.call if self.class.destructor
 
       # Only close the client if we have one sitting around
