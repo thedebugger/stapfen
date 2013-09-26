@@ -32,6 +32,47 @@ describe Stapfen::Worker do
     end
 
 
+    describe '#exit_cleanly' do
+      subject(:result) { worker.exit_cleanly }
+
+      context 'with no worker classes' do
+        it { should be_false }
+      end
+
+      context 'with a single worker class' do
+        let(:w) { double('Fake worker instance') }
+
+        before :each do
+          worker.class_variable_set(:@@workers, [w])
+        end
+
+        it "should execute the worker's #exit_cleanly method" do
+          w.should_receive(:exit_cleanly)
+          expect(result).to be_true
+        end
+
+        it "should return false if the worker's #exit_cleanly method" do
+          w.should_receive(:exit_cleanly).and_raise(StandardError)
+          expect(result).to be_false
+        end
+      end
+
+      context 'with multiple worker classes' do
+        let(:w1) { double('Fake Worker 1') }
+        let(:w2) { double('Fake Worker 2') }
+
+        before :each do
+          worker.class_variable_set(:@@workers, [w1, w2])
+        end
+
+        it 'should invoke both #exit_cleanly methods' do
+          w1.should_receive(:exit_cleanly)
+          w2.should_receive(:exit_cleanly)
+          expect(result).to be_true
+        end
+      end
+    end
+
     describe 'consume' do
       it 'should raise an error if no block is passed' do
         expect {

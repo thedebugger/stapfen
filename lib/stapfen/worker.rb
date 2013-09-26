@@ -10,7 +10,6 @@ module Stapfen
 
     class << self
       attr_accessor :configuration, :consumers, :logger, :destructor
-      attr_accessor :workers
     end
 
     # Instantiate a new +Worker+ instance and run it
@@ -61,20 +60,37 @@ module Stapfen
       @@workers
     end
 
+    # Invoke +exit_cleanly+ on each of the registered Worker instances that
+    # this class is keeping track of
+    #
+    # @return [Boolean] Whether or not we've exited/terminated cleanly
+    def self.exit_cleanly
+      return false if workers.empty?
+
+      cleanly = true
+      workers.each do |w|
+        begin
+          w.exit_cleanly
+        rescue StandardError => ex
+          $stderr.write("Failure while exiting cleanly #{ex.inspect}\n#{ex.backtrace}")
+          cleanly = false
+        end
+      end
+
+      return cleanly
+    end
+
     # Utility method to set up the proper worker signal handlers
     def self.handle_signals
       return if @@signals_handled
 
       Signal.trap(:INT) do
-        @@workers.each do |w|
-          w.exit_cleanly
-        end
+        self.exit_cleanly
         exit!
       end
+
       Signal.trap(:TERM) do
-        @@workers.each do |w|
-          w.exit_cleanly
-        end
+        self.exit_cleanly
       end
 
       @@signals_handled = true
