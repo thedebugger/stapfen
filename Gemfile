@@ -4,6 +4,7 @@ source 'https://rubygems.org'
 gemspec
 
 gem 'jruby-jms', :platform => :jruby
+gem 'stomp', '>= 1.2.14'
 
 group :development do
   gem 'rake'

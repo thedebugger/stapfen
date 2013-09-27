@@ -1,15 +1,22 @@
 require 'stomp'
 require 'stapfen/logger'
+require 'stapfen/destination'
+require 'stapfen/message'
 
 module Stapfen
   class Worker
     include Stapfen::Logger
 
+    # Class variables!
     @@signals_handled = false
     @@workers = []
 
+    # Class instance variables!
+    @use_stomp = true
+
     class << self
       attr_accessor :configuration, :consumers, :logger, :destructor
+
     end
 
     # Instantiate a new +Worker+ instance and run it
@@ -31,6 +38,51 @@ module Stapfen
         raise Stapfen::ConfigurationError
       end
       @configuration = block
+    end
+
+    # Force the worker to use STOMP as the messaging protocol (default)
+    #
+    # @return [Boolean]
+    def self.use_stomp!
+      begin
+        require 'stomp'
+      rescue LoadError
+        puts "You need the `stomp` gem to be installed to use stomp!"
+        raise
+      end
+
+      @use_stomp = true
+      return true
+    end
+
+    def self.stomp?
+      @use_stomp
+    end
+
+    # Force the worker to use JMS as the messaging protocol.
+    #
+    # *Note:* Only works under JRuby
+    #
+    # @return [Boolean]
+    def self.use_jms!
+      unless RUBY_PLATFORM == 'java'
+        raise Stapfen::ConfigurationError, "You cannot use JMS unless you're running under JRuby!"
+      end
+
+      begin
+        require 'java'
+        require 'jms'
+      rescue LoadError
+        puts "You need the `jms` gem to be installed to use JMS!"
+        raise
+      end
+
+      @use_stomp = false
+      return true
+    end
+
+    def self.jms?
+      !(@use_stomp)
     end
 
     # Optional method, should be passed a block which will yield a {{Logger}}
@@ -105,6 +157,53 @@ module Stapfen
     attr_accessor :client
 
     def run
+      if self.class.stomp?
+        run_stomp
+      elsif self.class.jms?
+        run_jms
+      end
+    end
+
+    def run_jms
+      JMS::Connection.start(self.class.configuration.call) do |connection|
+        @client = connection
+        debug("Running with #{@client} inside of Thread:#{Thread.current.inspect}")
+
+        self.class.consumers.each do |name, headers, block|
+          destination = Stapfen::Destination.from_string(name)
+          type = 'queue'
+          options = {}
+
+          if destination.queue?
+            options[:queue_name] = destination.name
+          end
+
+          if destination.topic?
+            type = 'topic'
+            options[:topic_name] = destination.name
+          end
+
+          method_name = "handle_#{type}_#{name}".to_sym
+          self.class.send(:define_method, method_name, &block)
+
+          connection.on_message(options) do |m|
+            message = Stapfen::Message.from_jms(m)
+            self.send(method_name, message)
+          end
+        end
+
+        begin
+          loop do
+            sleep 1
+          end
+          debug("Exiting the JMS runloop for #{self}")
+        rescue Interrupt
+          exit_cleanly
+        end
+      end
+    end
+
+    def run_stomp
       @client = Stomp::Client.new(self.class.configuration.call)
       debug("Running with #{@client} inside of Thread:#{Thread.current.inspect}")
 
