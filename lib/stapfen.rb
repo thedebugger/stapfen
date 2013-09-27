@@ -6,4 +6,6 @@ module Stapfen
   end
   class ConsumeError < StandardError
   end
+  class InvalidMessageError < StandardError
+  end
 end

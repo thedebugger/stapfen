@@ -13,6 +13,31 @@ describe Stapfen::Worker do
     it { should respond_to :log }
     it { should respond_to :shutdown }
 
+    describe '#use_stomp!' do
+      subject(:result) { worker.use_stomp! }
+
+      it 'should update the instance variable' do
+        expect(result).to be_true
+        expect(worker).to be_stomp
+        expect(worker).not_to be_jms
+      end
+    end
+
+    describe '#use_jms!', :java => true do
+      subject(:result) { worker.use_jms! }
+
+      after :each do
+        # Reset to the default since we've modified the class
+        worker.use_stomp!
+      end
+
+      it 'should update the instance variable' do
+        expect(result).to be_true
+        expect(worker).to be_jms
+        expect(worker).not_to be_stomp
+      end
+    end
+
     describe '#configure' do
       it 'should error when not passed a block' do
         expect {
