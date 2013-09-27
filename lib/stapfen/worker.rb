@@ -251,8 +251,10 @@ module Stapfen
       self.class.destructor.call if self.class.destructor
 
       # Only close the client if we have one sitting around
-      if client && !client.closed?
-        client.close
+      if client
+        if self.class.jms? || (!client.closed?)
+          client.close
+        end
       end
     end
   end
