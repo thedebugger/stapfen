@@ -20,6 +20,16 @@ module Stapfen
       end
     end
 
+    def as_jms
+      if queue?
+        return "queue://#{@name}"
+      end
+
+      if topic?
+        return "topic://#{@name}"
+      end
+    end
+
     # Create a {Stapfen::Destination} from the given string
     #
     # @param [String] name

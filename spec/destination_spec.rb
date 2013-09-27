@@ -5,6 +5,19 @@ describe Stapfen::Destination do
   it { should respond_to :name }
   it { should respond_to :type }
 
+  describe '#as_jms' do
+    let(:name) { 'rspec/dlq' }
+    subject(:destination) do
+      d = described_class.new
+      d.type = :queue
+      d.name = name
+      d.as_jms
+    end
+
+    it { should be_instance_of String }
+    it { should eql "queue://#{name}" }
+  end
+
   describe '#as_stomp' do
     let(:name) { 'rspec/dlq' }
 
