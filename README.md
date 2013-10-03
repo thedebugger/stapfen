@@ -1,6 +1,12 @@
 # Stapfen
 
-Stapfen is a simple gem to make writing stand-alone STOMP workers easier.
+
+Stapfen is a simple gem to make writing workers that consume messages via
+[STOMP](http://stomp.github.io/) or
+[JMS](https://en.wikipedia.org/wiki/Java_Message_Service) easier.
+
+Stapfen allows you to write one worker class, and use either protocol
+depending on the environment and needs.
 
 
 ## Usage
@@ -10,36 +16,57 @@ Stapfen is a simple gem to make writing stand-alone STOMP workers easier.
 
 Consider the following `myworker.rb` file:
 
-    class MyWorker < Stapfen::Worker
-      configure do
-        {:hosts => [
-          {
-            :host => 'localhost',
-            :port => 61613,
-            :login => 'guest',
-            :passcode => 'guest',
-            :ssl => false
-          }
-        ]}
-      end
+```ruby
+class MyWorker < Stapfen::Worker
+  use_stomp!
 
-      consume 'thequeue', :dead_letter_queue => '/queue/dlq',
-                          :max_redeliveries => 0 do |message|
-        data = expensive_computation(message.body)
-        persist(data)
-      end
-    end
+  configure do
+    {
+      :hosts => [
+        {
+          :host => 'localhost',
+          :port => 61613,
+          :login => 'guest',
+          :passcode => 'guest',
+          :ssl => false
+        }
+      ]
+    }
+  end
 
-    MyWorker.run!
+  consume 'thequeue', :dead_letter_queue => '/queue/dlq',
+                      :max_redeliveries => 0 do |message|
+
+    data = expensive_computation(message.body)
+    # Save my data, or do something worker-specific with it
+    persist(data)
+
+    # Send another message
+    client.publish('/topic/computation-acks', "finished with #{message.message_id}")
+  end
+
+end
+
+MyWorker.run!
+```
 
 
-The value returned from the `configure` block is expected to be a valid
+When using the STOMP protocol, the value returned from the `configure` block is expected to be a valid
 `Stomp::Client` [connection
 hash](https://github.com/stompgem/stomp#hash-login-example-usage-this-is-the-recommended-login-technique).
+
+In the case of the JMS protocol, the value returned from the `configure` block
+is expected to be a valid [configuration
+hash](https://github.com/reidmorrison/jruby-jms#consumer) for the
+[jruby-jms](https://github.com/reidmorrison/jruby-jms) gem.
+
+---
 
 It is also important to note that the `consume` block will be invoked inside an
 **instance** of `MyWorker` and will execute inside its own `Thread`, so take
 care when accessing other shared resources.
+
+### STOMP-specific support
 
 The consume block accepts the usual
 [Stomp::Client](https://github.com/stompgem/stomp) subscription headers, as well
@@ -47,6 +74,7 @@ as :dead_letter_queue and :max\_redeliveries.  If either of the latter two is
 present, the consumer will unreceive any messages for which the block returns
 false; after :max\_redeliveries, it will send the message to :dead_letter_queue.
 `consume` blocks without these headers will fail silently rather than unreceive.
+
 
 ## Installation
 
