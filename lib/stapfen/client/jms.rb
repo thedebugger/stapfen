@@ -4,28 +4,38 @@ require 'stapfen/destination'
 module Stapfen
   module Client
     class JMS
+      attr_reader :connection
+
       def initialize(configuration)
         super()
         @config = configuration
         @connection = nil
       end
 
+      # Connect to the broker via JMS and start the JMS session
+      #
+      # @return [JMS::Connection]
       def connect(*args)
         @connection = ::JMS::Connection.new(@config)
         @connection.start
         return @connection
       end
 
-      def publish(destination, body, headers={})
-        unless @session
-          @session = @connection.create_session
-        end
+      # Accessor method which will cache the session if we've already created
+      # it once
+      #
+      # @return [JMS::Session] Instantiated +JMS::Session+ for our
+      #   +connection+
+      def session
+        @session ||= connection.create_session
+      end
 
+      def publish(destination, body, headers={})
         destination = Stapfen::Destination.from_string(destination)
 
-        @session.producer(destination.jms_opts) do |p|
+        session.producer(destination.jms_opts) do |p|
           # Create the JMS typed Message
-          message = @session.message(body)
+          message = session.message(body)
 
           if headers[:persistent]
             headers.delete(:persistent)
@@ -44,19 +54,22 @@ module Stapfen
 
       def subscribe(destination, headers={}, &block)
         destination = Stapfen::Destination.from_string(destination)
-        @connection.on_message(destination.jms_opts) do |m|
+        connection.on_message(destination.jms_opts) do |m|
           block.call(m)
         end
       end
 
+      # Close the JMS::Connection and the JMS::Session if it's been created
+      # for this client
+      #
+      # @return [Boolean] True/false depending on whether we actually closed
+      #   the connection
       def close
-        return unless @connection
-        if @session
-          @session.close
-        end
+        return false unless @connection
+        @session.close if @session
         @connection.close
+        return true
       end
-
 
       def runloop
         loop do
