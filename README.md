@@ -34,6 +34,11 @@ class MyWorker < Stapfen::Worker
     }
   end
 
+  # [Optional] Set up a logger for each worker instance
+  log do
+    Logger.new(STDOUT)
+  end
+
   consume 'thequeue', :dead_letter_queue => '/queue/dlq',
                       :max_redeliveries => 0 do |message|
 

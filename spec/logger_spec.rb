@@ -29,7 +29,7 @@ describe Stapfen::Logger do
       let(:plogger) { double('RSpec Logger') }
 
       before :each do
-        logger.class.stub(:logger).and_return(plogger)
+        logger.class.stub(:logger).and_return(lambda { plogger })
       end
 
       it 'should pass info messages along' do

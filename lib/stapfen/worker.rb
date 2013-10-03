@@ -83,8 +83,8 @@ module Stapfen
 
     # Optional method, should be passed a block which will yield a {{Logger}}
     # instance for the Stapfen worker to use
-    def self.log
-      @logger = yield
+    def self.log(&block)
+      @logger = block
     end
 
     # Main message consumption block

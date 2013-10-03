@@ -38,6 +38,22 @@ describe Stapfen::Worker do
       end
     end
 
+    describe '#log' do
+      it "should store the block it's passed" do
+        logger = double('Mock Logger')
+
+        worker.log do
+          logger
+        end
+
+        expect(worker.logger).to be_instance_of Proc
+      end
+
+      after :each do
+        worker.logger = nil
+      end
+    end
+
     describe '#configure' do
       it 'should error when not passed a block' do
         expect {
@@ -52,10 +68,9 @@ describe Stapfen::Worker do
           config
         end
 
-        worker.configuration.call.should == config
+        expect(worker.configuration.call).to eql(config)
       end
     end
-
 
     describe '#exit_cleanly' do
       subject(:result) { worker.exit_cleanly }

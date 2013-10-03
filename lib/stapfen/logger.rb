@@ -18,7 +18,7 @@ module Stapfen
 
       def proxy_log_method(method, arguments)
         if self.logger
-          self.logger.send(method, *arguments)
+          self.logger.call.send(method, *arguments)
           return true
         end
         return false
@@ -39,7 +39,7 @@ module Stapfen
 
     def proxy_log_method(method, arguments)
       if self.class.logger
-        self.class.logger.send(method, *arguments)
+        self.class.logger.call.send(method, *arguments)
         return true
       end
       return false
