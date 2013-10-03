@@ -120,14 +120,28 @@ describe Stapfen::Worker do
       end
 
       context 'unreceive behavior' do
-        let(:client) { double('Stomp::Client', :running => false) }
+        let(:client) do
+          c = double('Mock Stapfen::Client')
+          c.stub(:connect)
+          c.stub(:can_unreceive? => true)
+          c.stub(:runloop)
+          c
+        end
+
         let(:name) { '/queue/some_queue' }
+        let(:message) do
+          m = Stomp::Message.new(nil)
+          m.stub(:body => 'rspec msg')
+          m
+        end
+
+
         before :each do
-          Stomp::Client.stub(:new).and_return(client)
+          Stapfen::Client::Stomp.stub(:new).and_return(client)
 
           # Get a subscription?  Call the message handler block.
           client.stub(:subscribe) do |name, headers, &block|
-            block.call('msg')
+            block.call(message)
           end
         end
 
@@ -164,7 +178,7 @@ describe Stapfen::Worker do
               worker.new.run
             end
             it 'should pass :unreceive_headers through to the unreceive call' do
-              client.should_receive(:unreceive).with('msg', unrec_headers).once
+              client.should_receive(:unreceive).with(message, unrec_headers).once
 
               worker.consume(name, raw_headers) {|msg| false }
               worker.new.run

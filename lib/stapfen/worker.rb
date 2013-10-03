@@ -11,12 +11,8 @@ module Stapfen
     @@signals_handled = false
     @@workers = []
 
-    # Class instance variables!
-    @use_stomp = true
-
     class << self
       attr_accessor :configuration, :consumers, :logger, :destructor
-
     end
 
     # Instantiate a new +Worker+ instance and run it
@@ -56,6 +52,7 @@ module Stapfen
     end
 
     def self.stomp?
+      return true if @use_stomp.nil?
       @use_stomp
     end
 
@@ -82,6 +79,7 @@ module Stapfen
     end
 
     def self.jms?
+      return false if @use_stomp.nil?
       !(@use_stomp)
     end
 
@@ -158,54 +156,16 @@ module Stapfen
 
     def run
       if self.class.stomp?
-        run_stomp
+        require 'stapfen/client/stomp'
+        @client = Stapfen::Client::Stomp.new(self.class.configuration.call)
       elsif self.class.jms?
-        run_jms
+        require 'stapfen/client/jms'
+        @client = Stapfen::Client::JMS.new(self.class.configuration.call)
       end
-    end
 
-    def run_jms
-      JMS::Connection.start(self.class.configuration.call) do |connection|
-        @client = connection
-        debug("Running with #{@client} inside of Thread:#{Thread.current.inspect}")
-
-        self.class.consumers.each do |name, headers, block|
-          destination = Stapfen::Destination.from_string(name)
-          type = 'queue'
-          options = {}
-
-          if destination.queue?
-            options[:queue_name] = destination.name
-          end
-
-          if destination.topic?
-            type = 'topic'
-            options[:topic_name] = destination.name
-          end
-
-          method_name = "handle_#{type}_#{name}".to_sym
-          self.class.send(:define_method, method_name, &block)
-
-          connection.on_message(options) do |m|
-            message = Stapfen::Message.from_jms(m)
-            self.send(method_name, message)
-          end
-        end
-
-        begin
-          loop do
-            sleep 1
-          end
-          debug("Exiting the JMS runloop for #{self}")
-        rescue Interrupt
-          exit_cleanly
-        end
-      end
-    end
-
-    def run_stomp
-      @client = Stomp::Client.new(self.class.configuration.call)
       debug("Running with #{@client} inside of Thread:#{Thread.current.inspect}")
+
+      @client.connect
 
       self.class.consumers.each do |name, headers, block|
         unreceive_headers = {}
@@ -219,25 +179,28 @@ module Stapfen
         method_name = name.gsub(/[.|\-]/, '_').to_sym
         self.class.send(:define_method, method_name, &block)
 
-        client.subscribe(name, headers) do |message|
+        client.subscribe(name, headers) do |m|
+          message = nil
+          if self.class.stomp?
+            message = Stapfen::Message.from_stomp(m)
+          end
+
+          if self.class.jms?
+            message = Stapfen::Message.from_jms(m)
+          end
+
           success = self.send(method_name, message)
 
-          if !success && !unreceive_headers.empty?
-            client.unreceive(message, unreceive_headers)
+          unless success
+            if client.can_unreceive? && !unreceive_headers.empty?
+              client.unreceive(m, unreceive_headers)
+            end
           end
         end
       end
 
       begin
-        # Performing this join/runningloop to make sure that we don't
-        # experience potential deadlocks between signal handlers who might
-        # close the connection, and an infinite Client#join call
-        #
-        # Instead of using client#open? we use #running which will still be
-        # true even if the client is currently in an exponential reconnect loop
-        while client.running do
-          client.join(1)
-        end
+        client.runloop
         warn("Exiting the runloop for #{self}")
       rescue Interrupt
         exit_cleanly

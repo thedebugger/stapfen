@@ -30,6 +30,16 @@ module Stapfen
       end
     end
 
+    def jms_opts
+      if queue?
+        return {:queue_name => name}
+      end
+
+      if topic?
+        return {:topic_name => name}
+      end
+    end
+
     # Create a {Stapfen::Destination} from the given string
     #
     # @param [String] name
