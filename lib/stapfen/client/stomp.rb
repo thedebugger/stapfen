@@ -3,6 +3,14 @@ require 'stomp'
 module Stapfen
   module Client
     class Stomp < ::Stomp::Client
+
+      def initialize(config)
+        # Perform a deep-copy of the configuration since +Stomp::Client+ will
+        # mutate/mess up the configuration +Hash+ passed in here, see:
+        #   <https://github.com/stompgem/stomp/issues/80>
+        super(Marshal.load(Marshal.dump(config)))
+      end
+
       def connect(*args)
         # No-op, since Stomp::Client will connect on instantiation
       end
