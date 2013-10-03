@@ -37,10 +37,7 @@ module Stapfen
           # Create the JMS typed Message
           message = session.message(body)
 
-          if headers[:persistent]
-            headers.delete(:persistent)
-            message.delivery_mode = ::JMS::DeliveryMode::PERSISTENT
-          end
+          message.delivery_mode = ::JMS::DeliveryMode::PERSISTENT if headers.delete(:persistent)
 
           # Take the remainder of the headers and push them into the message
           # properties.

@@ -52,8 +52,7 @@ module Stapfen
     end
 
     def self.stomp?
-      return true if @use_stomp.nil?
-      @use_stomp
+      @use_stomp.nil? || @use_stomp
     end
 
     # Force the worker to use JMS as the messaging protocol.
@@ -79,8 +78,7 @@ module Stapfen
     end
 
     def self.jms?
-      return false if @use_stomp.nil?
-      !(@use_stomp)
+      !(stomp?)
     end
 
     # Optional method, should be passed a block which will yield a {{Logger}}
