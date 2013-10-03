@@ -9,6 +9,8 @@ Stapfen allows you to write one worker class, and use either protocol
 depending on the environment and needs.
 
 
+**[RDoc here](http://rdoc.info/github/lookout/stapfen/master/frames)**
+
 ## Usage
 
 (Examples can be found in the `examples/` directory)
