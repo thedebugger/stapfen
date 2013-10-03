@@ -57,6 +57,22 @@ if RUBY_PLATFORM == 'java'
     describe '#publish' do
     end
 
+    describe '#closed?' do
+      subject(:result) { client.closed? }
+
+      context 'if a connection exists' do
+        before :each do
+          client.stub(:connection).and_return(double('JMS::Connection'))
+        end
+
+        it { should be_false }
+      end
+
+      context 'without a connection' do
+        it { should be_true }
+      end
+    end
+
     describe '#close' do
       subject(:result) { client.close }
       let(:connection) { double('JMS::Connection') }

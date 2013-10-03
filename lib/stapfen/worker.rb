@@ -213,7 +213,7 @@ module Stapfen
 
       # Only close the client if we have one sitting around
       if client
-        if self.class.jms? || (!client.closed?)
+        unless client.closed?
           client.close
         end
       end

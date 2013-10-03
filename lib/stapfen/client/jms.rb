@@ -65,7 +65,16 @@ module Stapfen
         return false unless @connection
         @session.close if @session
         @connection.close
+        @connection = nil
         return true
+      end
+
+      # API compatibilty method, doesn't actually indicate that the connection
+      # is closed. Will only return true if no connection currently exists
+      #
+      # @return [Boolean]
+      def closed?
+        return connection.nil?
       end
 
       def runloop
