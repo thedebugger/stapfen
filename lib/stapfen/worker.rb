@@ -125,6 +125,11 @@ module Stapfen
         end
       end
 
+      if RUBY_PLATFORM == 'java'
+        info "Telling the JVM to exit cleanly"
+        Java::JavaLang::System.exit(0)
+      end
+
       return cleanly
     end
 
@@ -208,14 +213,19 @@ module Stapfen
     # Invokes the shutdown block if it has been created, and closes the
     # {{Stomp::Client}} connection unless it has already been shut down
     def exit_cleanly
-      info("#{self} exiting cleanly")
+      info("#{self} exiting ")
       self.class.destructor.call if self.class.destructor
 
-      # Only close the client if we have one sitting around
-      if client
-        unless client.closed?
-          client.close
+      info "Killing client"
+      begin
+        # Only close the client if we have one sitting around
+        if client
+          unless client.closed?
+            client.close
+          end
         end
+      rescue StandardError => exc
+        error "Exception received while trying to close client! #{exc.inspect}"
       end
     end
   end

@@ -1,6 +1,11 @@
 # Changes to Stapfen
 
 
+## 2.0.1
+
+* More verbose exit handlers
+* Invoke `java.lang.System.exit` on the JVM when exiting
+
 ## 2.0.0
 
 * Add support for JMS-backed `Stapfen::Worker` classes
