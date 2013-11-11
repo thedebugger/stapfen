@@ -173,7 +173,7 @@ module Stapfen
       self.class.consumers.each do |name, headers, block|
         unreceive_headers = {}
         [:max_redeliveries, :dead_letter_queue].each do |sym|
-          unreceive_headers[sym] = headers.delete(sym) if headers.has_key? sym
+          unreceive_headers[sym] = headers[sym] if headers.has_key? sym
         end
 
         # We're taking each block and turning it into a method so that we can
