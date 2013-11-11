@@ -1,5 +1,5 @@
 require 'spec_helper'
-
+require 'stapfen/client/stomp'
 
 describe Stapfen::Worker do
   subject(:worker) { described_class.new }
@@ -114,10 +114,12 @@ describe Stapfen::Worker do
     end
 
     describe 'consume' do
-      it 'should raise an error if no block is passed' do
-        expect {
-          worker.consume 'jms.queue.lol'
-        }.to raise_error(Stapfen::ConsumeError)
+      context 'if no block is passed' do
+        it 'should raise an error if no block is passed' do
+          expect {
+            worker.consume 'jms.queue.lol'
+          }.to raise_error(Stapfen::ConsumeError)
+        end
       end
 
       context 'with just a queue name' do
@@ -140,6 +142,7 @@ describe Stapfen::Worker do
           c.stub(:connect)
           c.stub(:can_unreceive? => true)
           c.stub(:runloop)
+          c.stub(:unreceive)
           c
         end
 
@@ -150,9 +153,11 @@ describe Stapfen::Worker do
           m
         end
 
-
         before :each do
           Stapfen::Client::Stomp.stub(:new).and_return(client)
+
+          # Clear any old consumers out
+          worker.consumers = []
 
           # Get a subscription?  Call the message handler block.
           client.stub(:subscribe) do |name, headers, &block|
@@ -197,6 +202,13 @@ describe Stapfen::Worker do
 
               worker.consume(name, raw_headers) {|msg| false }
               worker.new.run
+            end
+            it 'should not remove the unreceive headers from the consumer' do
+              worker.consume(name, raw_headers) {|msg| false}
+              worker.new.run
+
+              expect(worker.consumers.last[1][:dead_letter_queue]).to eql unrec_headers[:dead_letter_queue]
+              expect(worker.consumers.last[1][:max_redeliveries]).to eql unrec_headers[:max_redeliveries]
             end
           end
           context 'on a successfully handled message' do
