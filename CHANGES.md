@@ -1,5 +1,8 @@
 # Changes to Stapfen
 
+## 2.0.2
+
+* Fix for unreceive handling
 
 ## 2.0.1
 
