@@ -16,4 +16,13 @@ Gem::Specification.new do |gem|
   gem.executables   = gem.files.grep(%r{^bin/}).map{ |f| File.basename(f) }
   gem.test_files    = gem.files.grep(%r{^(test|spec|features)/})
   gem.require_paths = ["lib"]
+
+  gem.add_dependency("stomp", '>= 1.2.14')
+  gem.add_dependency("jruby-jms") if RUBY_PLATFORM.to_s == "java"
+
+  gem.add_development_dependency("rake")
+  gem.add_development_dependency("rspec", "~> 2.11")
+  gem.add_development_dependency("pry")
+  gem.add_development_dependency("debugger") if RUBY_PLATFORM.to_s != "java"
+  gem.add_development_dependency("debugger-pry") if RUBY_PLATFORM.to_s != "java"
 end
